@@ -14,21 +14,36 @@ namespace Neural.Core
 
         public List<Neuron<T>> OuputLayer => _outputLayer;
 
-        public NeuralNetwork()
+        public IErrorComputator<T> ErrorComputator { get; set; }
+
+        public NeuralNetwork(IErrorComputator<T> errorComputator)
         {
             _inputLayer = new List<Neuron<T>>();
             _hiddenLayer = new List<List<Neuron<T>>>();
             _outputLayer = new List<Neuron<T>>();
+            ErrorComputator = errorComputator;
         }
 
-        public NeuralNetwork(List<Neuron<T>> inputLayer, List<List<Neuron<T>>> hiddenLayer, List<Neuron<T>> outputLayer)
+        public NeuralNetwork(
+            List<Neuron<T>> inputLayer, 
+            List<List<Neuron<T>>> hiddenLayer, 
+            List<Neuron<T>> outputLayer, 
+            IErrorComputator<T> errorComputator)
         {
             _inputLayer = inputLayer;
             _hiddenLayer = hiddenLayer;
             _outputLayer = outputLayer;
+            ErrorComputator = errorComputator;
         }
 
-        public void ComputeOnInputSet(params T[] inputSet)
+        public void TrainOnIteration(T[] inputSet, T[] expectedSet)
+        {
+            ComputeOnInputSet(inputSet);
+            double error = ErrorComputator.ComputeError(_outputLayer.Select(n => n.OutputValue).ToArray(), expectedSet);
+            Console.WriteLine(error);
+        }
+
+        private void ComputeOnInputSet(T[] inputSet)
         {
             InitializeInputLayer(inputSet);
 

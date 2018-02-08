@@ -1,4 +1,5 @@
 ﻿using Neural.Core;
+using Neural.Core.Common.ErrorComputators;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,8 +38,9 @@ namespace XorOperation
             hiddenLayer[0][0].ConnectTo(outputLayer[0], 1.5);
             hiddenLayer[0][1].ConnectTo(outputLayer[0], -2.3);
 
-            NeuralNetwork<double> neuralNetwork = new NeuralNetwork<double>(inputLayer, hiddenLayer, outputLayer);
-            neuralNetwork.ComputeOnInputSet(1, 0);
+            IErrorComputator<double> errorComputator = new MseErrorComputator();
+            NeuralNetwork<double> neuralNetwork = new NeuralNetwork<double>(inputLayer, hiddenLayer, outputLayer, errorComputator);
+            neuralNetwork.TrainOnIteration(new[] { 1.0, 0.0 }, new[] { 1.0 });
 
             Console.WriteLine(neuralNetwork.OuputLayer[0].OutputValue);
         }

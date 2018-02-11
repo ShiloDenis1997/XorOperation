@@ -11,5 +11,6 @@ namespace Neural.Core
         public Neuron<T> From { get; set; }
         public Neuron<T> To { get; set; }
         public double Weight { get; set; }
+        public T DeltaWeight { get; set; }
     }
 }

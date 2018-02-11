@@ -6,62 +6,124 @@ using System.Threading.Tasks;
 
 namespace Neural.Core
 {
-    public class NeuralNetwork <T>
+    public class NeuralNetwork
     {
-        private List<Neuron<T>> _inputLayer;
-        private List<List<Neuron<T>>> _hiddenLayer;
-        private List<Neuron<T>> _outputLayer;
+        private List<Neuron<double>> _inputLayer;
+        private List<List<Neuron<double>>> _hiddenLayer;
+        private List<Neuron<double>> _outputLayer;
+        private double _learningRate;
+        private double _moment;
 
-        public List<Neuron<T>> OuputLayer => _outputLayer;
+        public List<Neuron<double>> OuputLayer => _outputLayer;
 
-        public IErrorComputator<T> ErrorComputator { get; set; }
+        public IErrorComputator<double> ErrorComputator { get; set; }
 
-        public NeuralNetwork(IErrorComputator<T> errorComputator)
+        public NeuralNetwork(IErrorComputator<double> errorComputator, double learningRate, double moment)
         {
-            _inputLayer = new List<Neuron<T>>();
-            _hiddenLayer = new List<List<Neuron<T>>>();
-            _outputLayer = new List<Neuron<T>>();
+            _inputLayer = new List<Neuron<double>>();
+            _hiddenLayer = new List<List<Neuron<double>>>();
+            _outputLayer = new List<Neuron<double>>();
+            _learningRate = learningRate;
+            _moment = moment;
             ErrorComputator = errorComputator;
         }
 
         public NeuralNetwork(
-            List<Neuron<T>> inputLayer, 
-            List<List<Neuron<T>>> hiddenLayer, 
-            List<Neuron<T>> outputLayer, 
-            IErrorComputator<T> errorComputator)
+            List<Neuron<double>> inputLayer, 
+            List<List<Neuron<double>>> hiddenLayer, 
+            List<Neuron<double>> outputLayer, 
+            IErrorComputator<double> errorComputator,
+            double learningRate, 
+            double moment)
         {
             _inputLayer = inputLayer;
             _hiddenLayer = hiddenLayer;
             _outputLayer = outputLayer;
+            _learningRate = learningRate;
+            _moment = moment;
             ErrorComputator = errorComputator;
         }
 
-        public void TrainOnIteration(T[] inputSet, T[] expectedSet)
+        public double TrainOnIteration(double[] inputSet, double[] expectedSet)
         {
             ComputeOnInputSet(inputSet);
+            Console.WriteLine($"{inputSet[0]: 0.##} xor {inputSet[1]: 0.##} = {OuputLayer[0].OutputValue}");
             double error = ErrorComputator.ComputeError(_outputLayer.Select(n => n.OutputValue).ToArray(), expectedSet);
-            Console.WriteLine(error);
+
+            TrainOuputLayer(expectedSet);
+            TrainHiddenLayer();
+            TrainInputLayer();
+            return error;
         }
 
-        private void ComputeOnInputSet(T[] inputSet)
+        private void TrainOuputLayer(double[] expectedSet)
+        {
+            for (int i = 0; i < expectedSet.Length; i++)
+            {
+                CountDeltaForOutputNeuron(_outputLayer[i], expectedSet[i]);
+            }
+        }
+
+        private void TrainInputLayer()
+        {
+            foreach (var neuron in _inputLayer)
+            {
+                RecalculateWeights(neuron);
+            }
+        }
+
+        private void RecalculateWeights(Neuron<double> neuron)
+        {
+            foreach (var synapse in neuron.Outputs)
+            {
+                double gradient = synapse.To.Delta * neuron.OutputValue;
+                synapse.DeltaWeight = _learningRate * gradient + _moment * synapse.DeltaWeight;
+                synapse.Weight += synapse.DeltaWeight;
+            }
+        }
+
+        private void TrainHiddenLayer()
+        {
+            for (int i = _hiddenLayer.Count - 1; i >= 0; i--)
+            {
+                foreach (var neuron in _hiddenLayer[i])
+                {
+                    CountDeltaForHiddenNeuron(neuron);
+                    RecalculateWeights(neuron);
+                }
+            }
+        }
+
+        private void CountDeltaForOutputNeuron(Neuron<double> neuron, double idealOutput)
+        {
+            neuron.Delta = (idealOutput - neuron.OutputValue) * neuron.ActivationFunction.Derivate(neuron.InputValue);
+        }
+
+        private void CountDeltaForHiddenNeuron(Neuron<double> neuron)
+        {
+            neuron.Delta = neuron.ActivationFunction.Derivate(neuron.InputValue) 
+                * neuron.Outputs.Sum(s => s.Weight * s.To.Delta);
+        }
+
+        public void ComputeOnInputSet(double[] inputSet)
         {
             InitializeInputLayer(inputSet);
 
-            foreach (List<Neuron<T>> layer in _hiddenLayer)
+            foreach (List<Neuron<double>> layer in _hiddenLayer)
             {
-                foreach (Neuron<T> neuron in layer)
+                foreach (Neuron<double> neuron in layer)
                 {
                     neuron.ComputeOnIteration();
                 }
             }
 
-            foreach (Neuron<T> neuron in _outputLayer)
+            foreach (Neuron<double> neuron in _outputLayer)
             {
                 neuron.ComputeOnIteration();
             }
         }
 
-        private void InitializeInputLayer(T[] inputSet)
+        private void InitializeInputLayer(double[] inputSet)
         {
             if (inputSet.Length != _inputLayer.Count)
             {
